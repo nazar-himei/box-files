@@ -12,7 +12,7 @@ def load_user(user_id):
     return UserModel.get(user_id)
 
 
-@filebox.route('/filebox/get_files', methods=['GET'])
+@filebox.route('/filebox/files', methods=['GET'])
 def get_files():
     user_id = 1
     all_file = AllFileModel.query.filter_by(user_id=user_id).first()
@@ -20,14 +20,14 @@ def get_files():
 
     if all_file is not None:
         for file in all_file.files:
-            print(file)
             file_json = {
-                "filename": file.filename, "create_file": file.datetime_file, "file_id": file.id
+                "filename": file.filename,
+                "create_file": file.datetime_file.isoformat(),
+                "id": file.id
             }
             user_files.append(file_json)
 
-    print(user_files)
-    return jsonify({"status": "success", "data": f"{user_files}"})
+    return jsonify({"status": "success", "data": user_files})
 
 
 @filebox.route('/filebox/upload_file', methods=['POST'])
@@ -73,15 +73,33 @@ def download_file():
         return jsonify({"status": "fail", "messages": "invalid id file"})
 
     return send_file(BytesIO(file_box.data), attachment_filename=file_box.filename, as_attachment=True)
-#
-#
-# @filebox.route('/filebox/delete_file', methods=['GET', 'POST'])
-# def delete_file():
-#     file = request.files['file']
-#     db.create_all()
-#     upload_model = FileModel.query.filter_by(filename=file).first()
-#     upload_model.delete()
-#     db.session.add(upload_model)
-#     db.session.commit()
-#
-#     return jsonify({"status": "success", "filename": file.filename})
+
+
+@filebox.route('/filebox/delete_file', methods=['GET', 'POST'])
+def delete_file():
+    id_file = request.json['file_id']
+    user_id = 1
+    all_file = AllFileModel.query.filter_by(user_id=user_id).first()
+    if all_file is None:
+        return jsonify({"status": "fail", 'message': 'invalid id file'})
+    user_file = all_file.files[id_file]
+    db.session.delete(user_file)
+    db.session.commit()
+
+    user_files = []
+    if all_file is not None:
+        for file in all_file.files:
+            print()
+            file_json = {
+                "filename": file.filename,
+                "create_file": file.datetime_file.isoformat(),
+                "file_id": file.id
+            }
+            user_files.append(file_json)
+
+    return jsonify({"status": "success", "data": user_files})
+
+
+@filebox.route('/filebox/update_file', methods=['POST'])
+def update_file():
+    pass
