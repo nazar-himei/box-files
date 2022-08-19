@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -28,6 +30,10 @@ def create_app():
     app.secret_key = 'secret-key'
     app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///database.db"
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    app.config["JWT_SECRET_KEY"] = "super-secret"  # Change this!
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
+    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
 
     login_manager.init_app(app)
     db.init_app(app)

@@ -1,8 +1,11 @@
-import base64
+from base64 import b64encode, b64decode
 from io import BytesIO
-
-import magic
 from flask import Blueprint, request, jsonify, send_file
+from flask_jwt_extended import (
+    get_jwt_identity,
+    jwt_required,
+)
+from magic import from_buffer
 
 from box_files_app.app import db, login_manager
 from box_files_app.models.file_box_model import FileUserModel, FileBoxModel
@@ -17,11 +20,16 @@ def load_user(user_id):
 
 
 @filebox.route('/filebox/files', methods=['GET'])
-def get_files():
-    user_id = 1
-    all_file = FileBoxModel.query.filter_by(user_id=user_id).first()
-    user_files = []
+@jwt_required()
+def filebox_files():
+    jwt_email_user = get_jwt_identity()['email']
+    user = UserModel.query.filter_by(email=jwt_email_user).first()
+    all_file = FileBoxModel.query.filter_by(user_id=user.id).first()
 
+    if all_file is None:
+        return jsonify({"status": "success", "data": []})
+
+    user_files = []
     if all_file is not None:
         for file in all_file.files:
             file_json = {
@@ -38,6 +46,7 @@ def get_files():
 
 
 @filebox.route('/filebox/upload_file', methods=['POST'])
+@jwt_required()
 def upload_file():
     # Clean database.
     # db.drop_all()
@@ -46,22 +55,25 @@ def upload_file():
     data_file = request.files['file']
     read_file = data_file.read()
 
+    user_email = get_jwt_identity()['email']
+    user = UserModel.query.filter_by(email=user_email).first()
+
     # encode / decode file
-    image_string_encode = base64.b64encode(read_file)
-    image_string_decode = base64.b64decode(image_string_encode)
+    image_string_encode = b64encode(read_file)
+    image_string_decode = b64decode(image_string_encode)
 
     # get type file from base64
     bytes_file = BytesIO(image_string_decode)
     bytes_file.seek(0)
-    type_file = magic.from_buffer(bytes_file.read(), mime=True).split('/')[-1]
+    type_file = from_buffer(bytes_file.read(), mime=True).split('/')[-1]
 
     # parse size of file
     file_size = len(image_string_encode) * 3 / 4 - str(image_string_encode).count('=')
 
-    user_files = FileBoxModel.query.filter_by(user_id=1).first()
+    user_files = FileBoxModel.query.filter_by(user_id=user.id).first()
     if user_files is None:
         # Create model for database.
-        file_box = FileBoxModel(user_id=1)
+        file_box = FileBoxModel(user_id=user.id)
         file_user = FileUserModel(
             filename=data_file.filename,
             data=read_file,
@@ -72,10 +84,10 @@ def upload_file():
         db.session.add(file_box)
         db.session.commit()
 
-        return jsonify({"status": "success", "filename": file_user.filename, "size_file": 1})
+        return jsonify({"status": "success", "filename": file_user.filename, "size_file": 1}), 200
 
     # Get currency model from database.
-    file_box = FileBoxModel.query.filter_by(user_id=1)[0]
+    file_box = FileBoxModel.query.filter_by(user_id=user.id)[0]
     file_user = FileUserModel(
         filename=data_file.filename,
         data=read_file,
@@ -91,25 +103,37 @@ def upload_file():
 
 
 @filebox.route('/filebox/download_file', methods=['GET', 'POST'])
+@jwt_required()
 def download_file():
     file_id = request.json['id']
-    user_id = 1
-    all_file = FileBoxModel.query.filter_by(user_id=user_id).first()
+
+    user_email = get_jwt_identity()['email']
+    user = UserModel.query.filter_by(email=user_email).first()
+
+    all_file = FileBoxModel.query.filter_by(user_id=user.id).first()
+
+    if all_file is None:
+        return jsonify({"status": "fail", "messages": "data is empty"})
 
     for file in all_file.files:
         if file.id == file_id:
-            return send_file(BytesIO(file.data), attachment_filename=file.filename, as_attachment=True)
+            return send_file(BytesIO(file.data), attachment_filename=file.filename,
+                             mimetype=f"application/{file.type_of_data}", as_attachment=True)
 
     return jsonify({"status": "fail", "messages": "invalid id file"})
 
 
 @filebox.route('/filebox/delete_file', methods=['GET', 'POST'])
+@jwt_required()
 def delete_file():
     id_file = request.json['file_id']
-    user_id = 1
-    all_file = FileBoxModel.query.filter_by(user_id=user_id).first()
+    user_email = get_jwt_identity()['email']
+    user = UserModel.query.filter_by(email=user_email).first()
+
+    all_file = FileBoxModel.query.filter_by(user_id=user.id).first()
     if all_file is None:
         return jsonify({"status": "fail", 'message': 'invalid id file'})
+
     for file in all_file.files:
         if file.id == id_file:
             db.session.delete(file)
@@ -118,7 +142,6 @@ def delete_file():
     user_files = []
     if all_file is not None:
         for file in all_file.files:
-            print()
             file_json = {
                 "filename": file.filename,
                 "create_file": file.created_file_time.isoformat(),
@@ -130,16 +153,24 @@ def delete_file():
 
 
 @filebox.route('/filebox/update_file', methods=['POST'])
+@jwt_required()
 def update_file():
     id_file = request.json['id']
     filename = request.json['filename']
-    user_id = 1
-    all_file = FileBoxModel.query.filter_by(user_id=user_id).first()
+
+    user_email = get_jwt_identity()['email']
+    user = UserModel.query.filter_by(email=user_email).first()
+
+    all_file = FileBoxModel.query.filter_by(user_id=user.id).first()
+
     if all_file is None:
-        return jsonify({"status": "fail", 'message': 'invalid id file'})
+        return jsonify({"status": "fail", 'message': 'data is empty'})
 
-    file = all_file.files[0]
-    file.filename = filename
-    db.session.commit()
+    for file in all_file.files:
+        if id_file == file.id:
+            file.filename = filename
+            db.session.commit()
 
-    return jsonify({"status": "fail", 'message': 'invalid id file'})
+            return jsonify({"status": "success"})
+
+    return jsonify({"status": "fail", "msg": "Invalid id file"})
