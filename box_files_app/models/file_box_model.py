@@ -2,17 +2,22 @@ from box_files_app.app import db
 from datetime import datetime
 
 
-class FileBoxModel(db.Model):
+class FileUserModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(50))
+    filename = db.Column(db.String(50), nullable=False)
+    describe = db.Column(db.String(255), nullable=True)
     data = db.Column(db.LargeBinary)
-    datetime_file = db.Column(db.DateTime, nullable=False, default=datetime.utcnow())
-    file_id = db.Column(db.Integer, db.ForeignKey('all_file_model.id'))
+    data_base64 = db.Column(db.TEXT, nullable=True)
+    created_file_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow())
+    changed_file_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow())
+    size_of_data = db.Column(db.Float)
+    type_of_data = db.Column(db.String(20), nullable=True)
+    file_key = db.Column(db.Integer, db.ForeignKey('file_box_model.id'))
 
 
-class AllFileModel(db.Model):
-    __tablename__ = "all_file_model"
+class FileBoxModel(db.Model):
+    __tablename__ = "file_box_model"
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, nullable=False)
-    files = db.relationship('FileBoxModel', backref='all_file_model', lazy=True)
+    files = db.relationship('FileUserModel', backref='file_box_model', lazy=True)

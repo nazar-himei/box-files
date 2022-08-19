@@ -1,8 +1,12 @@
+import base64
 from io import BytesIO
+
+import magic
 from flask import Blueprint, request, jsonify, send_file
+
 from box_files_app.app import db, login_manager
+from box_files_app.models.file_box_model import FileUserModel, FileBoxModel
 from box_files_app.models.user_model import UserModel
-from box_files_app.models.file_box_model import FileBoxModel, AllFileModel
 
 filebox = Blueprint('filebox', __name__)
 
@@ -15,14 +19,17 @@ def load_user(user_id):
 @filebox.route('/filebox/files', methods=['GET'])
 def get_files():
     user_id = 1
-    all_file = AllFileModel.query.filter_by(user_id=user_id).first()
+    all_file = FileBoxModel.query.filter_by(user_id=user_id).first()
     user_files = []
 
     if all_file is not None:
         for file in all_file.files:
             file_json = {
                 "filename": file.filename,
-                "create_file": file.datetime_file.isoformat(),
+                "create_file": file.created_file_time.isoformat(),
+                "changed_file": file.changed_file_time.isoformat(),
+                "size_data": file.size_of_data,
+                "type_data": file.type_of_data,
                 "id": file.id
             }
             user_files.append(file_json)
@@ -36,55 +43,77 @@ def upload_file():
     # db.drop_all()
     # db.create_all()
 
-    file = request.files['file']
-    user_files = AllFileModel.query.filter_by(user_id=1)
-    if user_files.first() is None:
-        # Create model for database.
-        print("MODEL EMPTY")
-        all_file = AllFileModel(user_id=1)
-        file_box = FileBoxModel(filename=file.filename, data=file.read())
-        all_file.files.append(file_box)
-        db.session.add(all_file)
-        db.session.commit()
-        print(AllFileModel.query.filter_by(user_id=1).first().files)
+    data_file = request.files['file']
+    read_file = data_file.read()
 
-        return jsonify({"status": "success", "filename": file_box.filename, "size_file": 1})
+    # encode / decode file
+    image_string_encode = base64.b64encode(read_file)
+    image_string_decode = base64.b64decode(image_string_encode)
+
+    # get type file from base64
+    bytes_file = BytesIO(image_string_decode)
+    bytes_file.seek(0)
+    type_file = magic.from_buffer(bytes_file.read(), mime=True).split('/')[-1]
+
+    # parse size of file
+    file_size = len(image_string_encode) * 3 / 4 - str(image_string_encode).count('=')
+
+    user_files = FileBoxModel.query.filter_by(user_id=1).first()
+    if user_files is None:
+        # Create model for database.
+        file_box = FileBoxModel(user_id=1)
+        file_user = FileUserModel(
+            filename=data_file.filename,
+            data=read_file,
+            size_of_data=file_size,
+            type_of_data=type_file,
+        )
+        file_box.files.append(file_user)
+        db.session.add(file_box)
+        db.session.commit()
+
+        return jsonify({"status": "success", "filename": file_user.filename, "size_file": 1})
+
     # Get currency model from database.
-    all_file = AllFileModel.query.filter_by(user_id=1)[0]
-    filex_box = FileBoxModel(filename=file.filename, data=file.read(), file_id=all_file.id)
-    db.session.add(filex_box)
+    file_box = FileBoxModel.query.filter_by(user_id=1)[0]
+    file_user = FileUserModel(
+        filename=data_file.filename,
+        data=read_file,
+        data_base64=image_string_encode,
+        size_of_data=file_size,
+        type_of_data=type_file,
+        file_key=file_box.id
+    )
+    db.session.add(file_user)
     db.session.commit()
-    print(f"RESULT {all_file.files}")
-    return jsonify({"status": "success", "filename": file.filename, "size_file": 1})
+
+    return jsonify({"status": "success", "filename": data_file.filename, "size_file": 1})
 
 
 @filebox.route('/filebox/download_file', methods=['GET', 'POST'])
 def download_file():
-    file_id = request.json['file_id']
+    file_id = request.json['id']
     user_id = 1
-    all_file = AllFileModel.query.filter_by(user_id=user_id).first()
-    file_box = all_file.files[0]
+    all_file = FileBoxModel.query.filter_by(user_id=user_id).first()
 
     for file in all_file.files:
         if file.id == file_id:
-            file_box = file
+            return send_file(BytesIO(file.data), attachment_filename=file.filename, as_attachment=True)
 
-    if all_file is None or file_box is None:
-        return jsonify({"status": "fail", "messages": "invalid id file"})
-
-    return send_file(BytesIO(file_box.data), attachment_filename=file_box.filename, as_attachment=True)
+    return jsonify({"status": "fail", "messages": "invalid id file"})
 
 
 @filebox.route('/filebox/delete_file', methods=['GET', 'POST'])
 def delete_file():
     id_file = request.json['file_id']
     user_id = 1
-    all_file = AllFileModel.query.filter_by(user_id=user_id).first()
+    all_file = FileBoxModel.query.filter_by(user_id=user_id).first()
     if all_file is None:
         return jsonify({"status": "fail", 'message': 'invalid id file'})
-    user_file = all_file.files[id_file]
-    db.session.delete(user_file)
-    db.session.commit()
+    for file in all_file.files:
+        if file.id == id_file:
+            db.session.delete(file)
+            db.session.commit()
 
     user_files = []
     if all_file is not None:
@@ -92,8 +121,8 @@ def delete_file():
             print()
             file_json = {
                 "filename": file.filename,
-                "create_file": file.datetime_file.isoformat(),
-                "file_id": file.id
+                "create_file": file.created_file_time.isoformat(),
+                "id": file.id
             }
             user_files.append(file_json)
 
@@ -102,4 +131,15 @@ def delete_file():
 
 @filebox.route('/filebox/update_file', methods=['POST'])
 def update_file():
-    pass
+    id_file = request.json['id']
+    filename = request.json['filename']
+    user_id = 1
+    all_file = FileBoxModel.query.filter_by(user_id=user_id).first()
+    if all_file is None:
+        return jsonify({"status": "fail", 'message': 'invalid id file'})
+
+    file = all_file.files[0]
+    file.filename = filename
+    db.session.commit()
+
+    return jsonify({"status": "fail", 'message': 'invalid id file'})
