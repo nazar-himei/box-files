@@ -1,5 +1,8 @@
 from base64 import b64encode, b64decode
+from datetime import datetime
 from io import BytesIO
+from zipfile import ZipFile, ZIP_DEFLATED
+
 from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import (
     get_jwt_identity,
@@ -71,6 +74,7 @@ def upload_file():
     file_size = len(image_string_encode) * 3 / 4 - str(image_string_encode).count('=')
 
     user_files = FileBoxModel.query.filter_by(user_id=user.id).first()
+
     if user_files is None:
         # Create model for database.
         file_box = FileBoxModel(user_id=user.id)
@@ -104,21 +108,45 @@ def upload_file():
 
 @filebox.route('/filebox/download_file', methods=['GET', 'POST'])
 @jwt_required()
-def download_file():
-    file_id = request.json['id']
+def downloads_file():
+    files_id = request.json['files_id']
 
     user_email = get_jwt_identity()['email']
     user = UserModel.query.filter_by(email=user_email).first()
-
     all_file = FileBoxModel.query.filter_by(user_id=user.id).first()
 
     if all_file is None:
         return jsonify({"status": "fail", "messages": "data is empty"})
 
-    for file in all_file.files:
-        if file.id == file_id:
-            return send_file(BytesIO(file.data), attachment_filename=file.filename,
-                             mimetype=f"application/{file.type_of_data}", as_attachment=True)
+    try:
+        if len(files_id) > 1:
+            file_byte = BytesIO()
+            zip_file = ZipFile(file_byte, 'w', ZIP_DEFLATED)
+
+            for user_file in all_file.files:
+                for data_id in files_id:
+                    if user_file.id == data_id:
+                        zip_file.writestr(user_file.filename, user_file.data)
+
+            zip_file.close()
+            file_byte.seek(0)
+            return send_file(
+                file_byte,
+                attachment_filename=f'filebox-download-{datetime.utcnow().isoformat()}.zip',
+                mimetype="application/zip",
+                as_attachment=True,
+            )
+
+        for file in all_file.files:
+            if file.id == files_id[0]:
+                return send_file(
+                    BytesIO(file.data),
+                    attachment_filename=file.filename,
+                    mimetype=f"application/{file.type_of_data}",
+                    as_attachment=True,
+                )
+    except TypeError:
+        return jsonify({"status": "failed", "messages": "invalid type file"}), 502
 
     return jsonify({"status": "fail", "messages": "invalid id file"})
 
@@ -126,7 +154,8 @@ def download_file():
 @filebox.route('/filebox/delete_file', methods=['GET', 'POST'])
 @jwt_required()
 def delete_file():
-    id_file = request.json['file_id']
+    files_id = request.json['files_id']
+
     user_email = get_jwt_identity()['email']
     user = UserModel.query.filter_by(email=user_email).first()
 
@@ -134,10 +163,14 @@ def delete_file():
     if all_file is None:
         return jsonify({"status": "fail", 'message': 'invalid id file'})
 
-    for file in all_file.files:
-        if file.id == id_file:
-            db.session.delete(file)
-            db.session.commit()
+    try:
+        for file in all_file.files:
+            for data_id in files_id:
+                if file.id == data_id:
+                    db.session.delete(file)
+                    db.session.commit()
+    except TypeError:
+        return jsonify({"status": "failed", "messages": "invalid type file"}), 502
 
     user_files = []
     if all_file is not None:
@@ -167,6 +200,7 @@ def update_file():
         return jsonify({"status": "fail", 'message': 'data is empty'})
 
     for file in all_file.files:
+
         if id_file == file.id:
             file.filename = filename
             db.session.commit()
