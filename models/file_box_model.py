@@ -1,4 +1,4 @@
-from box_files_app.app import db
+from application import db
 from datetime import datetime
 
 

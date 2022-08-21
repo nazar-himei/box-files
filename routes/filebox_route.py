@@ -10,9 +10,9 @@ from flask_jwt_extended import (
 )
 from magic import from_buffer
 
-from box_files_app.app import db, login_manager
-from box_files_app.models.file_box_model import FileUserModel, FileBoxModel
-from box_files_app.models.user_model import UserModel
+from application import login_manager, db
+from models.file_box_model import FileUserModel, FileBoxModel
+from models.user_model import UserModel
 
 filebox = Blueprint('filebox', __name__)
 
