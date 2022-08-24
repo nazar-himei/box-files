@@ -1,6 +1,5 @@
-from pydantic.error_wrappers import ValidationError
 from werkzeug.security import generate_password_hash
-
+from pydantic.error_wrappers import ValidationError
 from models.user_model import UserModel
 from repositories.profile_repository import ProfileRepository
 from schemas.auth_schema import UserSignUpBase, UserSignInBase, AuthUserBase

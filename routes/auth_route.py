@@ -10,8 +10,12 @@ from consts.status_code import BADE_REQUEST_STATUS, UNSUPPORTED_TYPE_STATUS, OK_
 from models.user_model import UserModel
 from services.auth_service import AuthService
 from services.token_service import TokenManager
-from templates_json.auth_template_json import INVALID_TYPE_DATA_JSON, USER_ALREADY_JSON, USER_EMPTY_JSON, \
-    INCORECT_DATA_USER
+from templates_json.auth_template_json import (
+    INVALID_TYPE_DATA_JSON,
+    USER_ALREADY_JSON,
+    USER_EMPTY_JSON,
+    INCORRECT_DATA_USER,
+)
 
 auth = Blueprint('auth', __name__)
 
@@ -34,30 +38,31 @@ def sign_up():
         return jsonify(USER_ALREADY_JSON), UNSUPPORTED_TYPE_STATUS
 
     auth_service.save_user_database()
-    success_user_base = auth_service.get_auth_user_base(email=user_email)
+    auth_user_base = auth_service.get_auth_user_base(email=user_email)
 
-    return jsonify(success_user_base.to_json()), OK_STATUS
+    return jsonify(auth_user_base.to_json()), OK_STATUS
 
 
 @auth.route('/sign_in', methods=['GET', 'POST'])
 def sign_in():
     auth_service = AuthService(request=request)
     sign_in_base = auth_service.parse_sign_in_base()
-    user_email = sign_in_base.email
 
     if sign_in_base is None:
         return jsonify(INVALID_TYPE_DATA_JSON), BADE_REQUEST_STATUS
 
-    if auth_service.is_user_already_exists(user_email):
-        return jsonify(INCORECT_DATA_USER), UNSUPPORTED_TYPE_STATUS
+    user_email = sign_in_base.email
 
-    if not auth_service.is_valid_data_user():
+    if not auth_service.is_user_already_exists(user_email):
         return jsonify(USER_EMPTY_JSON), UNSUPPORTED_TYPE_STATUS
 
-    auth_service.update_status_active_user(email=user_email)
-    success_user_base = auth_service.get_auth_user_base(email=user_email)
+    if not auth_service.is_valid_data_user():
+        return jsonify(INCORRECT_DATA_USER), UNSUPPORTED_TYPE_STATUS
 
-    return jsonify(success_user_base.to_json()), OK_STATUS
+    auth_service.update_status_active_user(email=user_email)
+    auth_user_base = auth_service.get_auth_user_base(email=user_email)
+
+    return jsonify(auth_user_base.to_json()), OK_STATUS
 
 
 # We are using the `refresh=True` options in jwt_required to only allow
