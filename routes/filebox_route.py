@@ -1,18 +1,18 @@
-from base64 import b64encode, b64decode
 from datetime import datetime
 from io import BytesIO
-from zipfile import ZipFile, ZIP_DEFLATED
 
 from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import (
     get_jwt_identity,
     jwt_required,
 )
-from magic import from_buffer
-
 from application import login_manager, db
-from models.file_box_model import FileUserModel, FileBoxModel
+from consts.status_code import OK_STATUS, BADE_REQUEST_STATUS
+from models.file_box_model import FileBoxModel
 from models.user_model import UserModel
+from services.file_box_service import FileBoxService
+from services.file_manager import ZipFileManager
+from templates_json.auth_template_json import INVALID_TYPE_OF_FILE
 
 filebox = Blueprint('filebox', __name__)
 
@@ -22,88 +22,35 @@ def load_user(user_id):
     return UserModel.get(user_id)
 
 
-@filebox.route('/filebox/files', methods=['GET'])
+@filebox.route('/filebox/files', methods=['GET', 'POST'])
 @jwt_required()
 def filebox_files():
-    jwt_email_user = get_jwt_identity()['email']
-    user = UserModel.query.filter_by(email=jwt_email_user).first()
-    all_file = FileBoxModel.query.filter_by(user_id=user.id).first()
+    filebox_service = FileBoxService(request, get_jwt_identity()['email'])
+    files = filebox_service.iterable_element_is_filebox()
 
-    if all_file is None:
-        return jsonify({"status": "success", "data": []})
-
-    user_files = []
-    if all_file is not None:
-        for file in all_file.files:
-            file_json = {
-                "filename": file.filename,
-                "create_file": file.created_file_time.isoformat(),
-                "changed_file": file.changed_file_time.isoformat(),
-                "size_data": file.size_of_data,
-                "type_data": file.type_of_data,
-                "id": file.id
-            }
-            user_files.append(file_json)
-
-    return jsonify({"status": "success", "data": user_files})
+    return jsonify({
+        "status": "success",
+        "data": files
+    }), OK_STATUS
 
 
 @filebox.route('/filebox/upload_file', methods=['POST'])
 @jwt_required()
 def upload_file():
-    # Clean database.
-    # db.drop_all()
-    # db.create_all()
+    filebox_service = FileBoxService(request, get_jwt_identity()['email'])
+    filebox_service.iterable_files_and_update_files_byte_context()
 
-    data_file = request.files['file']
-    read_file = data_file.read()
+    if not filebox_service.is_valid_files():
+        return jsonify(INVALID_TYPE_OF_FILE), BADE_REQUEST_STATUS
 
-    user_email = get_jwt_identity()['email']
-    user = UserModel.query.filter_by(email=user_email).first()
+    filebox_service.upload_user_file()
+    files = filebox_service.iterable_element_is_filebox()
+    filebox_service.clean_file_bytes_context()
 
-    # encode / decode file
-    image_string_encode = b64encode(read_file)
-    image_string_decode = b64decode(image_string_encode)
-
-    # get type file from base64
-    bytes_file = BytesIO(image_string_decode)
-    bytes_file.seek(0)
-    type_file = from_buffer(bytes_file.read(), mime=True).split('/')[-1]
-
-    # parse size of file
-    file_size = len(image_string_encode) * 3 / 4 - str(image_string_encode).count('=')
-
-    user_files = FileBoxModel.query.filter_by(user_id=user.id).first()
-
-    if user_files is None:
-        # Create model for database.
-        file_box = FileBoxModel(user_id=user.id)
-        file_user = FileUserModel(
-            filename=data_file.filename,
-            data=read_file,
-            size_of_data=file_size,
-            type_of_data=type_file,
-        )
-        file_box.files.append(file_user)
-        db.session.add(file_box)
-        db.session.commit()
-
-        return jsonify({"status": "success", "filename": file_user.filename, "size_file": 1}), 200
-
-    # Get currency model from database.
-    file_box = FileBoxModel.query.filter_by(user_id=user.id)[0]
-    file_user = FileUserModel(
-        filename=data_file.filename,
-        data=read_file,
-        data_base64=image_string_encode,
-        size_of_data=file_size,
-        type_of_data=type_file,
-        file_key=file_box.id
-    )
-    db.session.add(file_user)
-    db.session.commit()
-
-    return jsonify({"status": "success", "filename": data_file.filename, "size_file": 1})
+    return jsonify({
+        "status": "success",
+        "data": files
+    }), OK_STATUS
 
 
 @filebox.route('/filebox/download_file', methods=['GET', 'POST'])
@@ -120,18 +67,16 @@ def downloads_file():
 
     try:
         if len(files_id) > 1:
-            file_byte = BytesIO()
-            zip_file = ZipFile(file_byte, 'w', ZIP_DEFLATED)
+            file_manger = ZipFileManager()
 
             for user_file in all_file.files:
                 for data_id in files_id:
                     if user_file.id == data_id:
-                        zip_file.writestr(user_file.filename, user_file.data)
+                        file_manger.write_file_to_zip(user_file.filename, user_file.data)
 
-            zip_file.close()
-            file_byte.seek(0)
+            file_manger.close_zip_file()
             return send_file(
-                file_byte,
+                file_manger.file_byte,
                 attachment_filename=f'filebox-download-{datetime.utcnow().isoformat()}.zip',
                 mimetype="application/zip",
                 as_attachment=True,
