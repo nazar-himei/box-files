@@ -6,13 +6,14 @@ from flask_jwt_extended import (
     get_jwt_identity,
     jwt_required,
 )
+
 from application import login_manager, db
 from consts.status_code import OK_STATUS, BADE_REQUEST_STATUS
 from models.file_box_model import FileBoxModel
 from models.user_model import UserModel
 from services.file_box_service import FileBoxService
 from services.file_manager import ZipFileManager
-from templates_json.auth_template_json import INVALID_TYPE_OF_FILE
+from templates_json.auth_template_json import INVALID_TYPE_OF_FILE, INVALID_TYPE_DATA_JSON, INVALID_FILE_ID
 
 filebox = Blueprint('filebox', __name__)
 
@@ -96,38 +97,24 @@ def downloads_file():
     return jsonify({"status": "fail", "messages": "invalid id file"})
 
 
-@filebox.route('/filebox/delete_file', methods=['GET', 'POST'])
+@filebox.route('/filebox/deleteFile', methods=['GET', 'POST'])
 @jwt_required()
 def delete_file():
-    files_id = request.json['files_id']
+    filebox_service = FileBoxService(request, get_jwt_identity()['email'])
+    files_scheme = filebox_service.parse_delete_file_scheme(request.data)
 
-    user_email = get_jwt_identity()['email']
-    user = UserModel.query.filter_by(email=user_email).first()
+    if files_scheme is None:
+        return jsonify(INVALID_TYPE_DATA_JSON), BADE_REQUEST_STATUS,
 
-    all_file = FileBoxModel.query.filter_by(user_id=user.id).first()
-    if all_file is None:
-        return jsonify({"status": "fail", 'message': 'invalid id file'})
+    files_id = files_scheme.files_id
 
-    try:
-        for file in all_file.files:
-            for data_id in files_id:
-                if file.id == data_id:
-                    db.session.delete(file)
-                    db.session.commit()
-    except TypeError:
-        return jsonify({"status": "failed", "messages": "invalid type file"}), 502
+    if filebox_service.is_empty_files_id(files_id):
+        return jsonify(INVALID_FILE_ID), BADE_REQUEST_STATUS
 
-    user_files = []
-    if all_file is not None:
-        for file in all_file.files:
-            file_json = {
-                "filename": file.filename,
-                "create_file": file.created_file_time.isoformat(),
-                "id": file.id
-            }
-            user_files.append(file_json)
+    filebox_service.delete_file_from(files_id)
+    files = filebox_service.iterable_element_is_filebox()
 
-    return jsonify({"status": "success", "data": user_files})
+    return jsonify({"status": "success", "data": files}), OK_STATUS
 
 
 @filebox.route('/filebox/update_file', methods=['POST'])

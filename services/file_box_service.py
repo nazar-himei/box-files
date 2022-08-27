@@ -3,6 +3,7 @@ from io import BytesIO
 from models.file_box_model import FileUserModel, FileBoxModel
 from repositories.file_box_repository import FileBoxRepository
 from repositories.profile_repository import ProfileRepository
+from schemas.file_delete_base import FileDeleteBase
 from schemas.file_schema import FileUserBase
 from services.file_manager import FileManager
 
@@ -114,3 +115,38 @@ class FileBoxService:
 
         to_file_model = self.to_file_model(file_manager, all_files.id)
         FileBoxRepository.add_file(to_file_model)
+
+    # Parse model DeleteFileBase
+    @staticmethod
+    def parse_delete_file_scheme(data):
+        from pydantic import ValidationError
+        try:
+            data = FileDeleteBase.parse_raw(data)
+        except TypeError:
+            return None
+
+        except ValidationError:
+            return None
+
+        return data
+
+    # Check if is files id has in database files
+    def is_empty_files_id(self, files_id):
+        for id_file in files_id:
+            user_file = self.get_detail_file(id_file)
+            if user_file is None:
+                return True
+
+        return False
+
+    # Delete files from storage use to files_id
+    def delete_file_from(self, files_id):
+        files = self.all_files().files
+
+        if files is None:
+            return
+
+        for file in files:
+            for id_file in files_id:
+                if file.id == id_file:
+                    FileBoxRepository.delete_file(file)
