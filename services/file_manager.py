@@ -33,6 +33,13 @@ class FileManager:
 
         return type_file
 
+    # Get file name without type a file.
+    def get_filename(self):
+        filename = self.file.filename.split('.')
+        last_index_file_type = len(filename) - 1
+
+        return filename[last_index_file_type]
+
     @staticmethod
     def allowed_files(filename):
         return '.' in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS

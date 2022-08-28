@@ -32,3 +32,7 @@ class FileBoxRepository:
     @staticmethod
     def delete_file(file_model):
         SessionManager.delete_model(file_model)
+
+    @staticmethod
+    def save_file():
+        SessionManager.get_session().commit()
