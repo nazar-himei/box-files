@@ -5,7 +5,7 @@ from datetime import datetime
 class FileUserModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(50), nullable=False)
-    describe = db.Column(db.String(255), nullable=True)
+    description = db.Column(db.String(255), nullable=True)
     data = db.Column(db.LargeBinary)
     data_base64 = db.Column(db.TEXT, nullable=True)
     created_file_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow())

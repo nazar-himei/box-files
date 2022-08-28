@@ -1,10 +1,9 @@
-from io import BytesIO
+from pydantic import ValidationError
 
-from models.file_box_model import FileUserModel, FileBoxModel
+from models.file_box_model import FileUserModel
 from repositories.file_box_repository import FileBoxRepository
 from repositories.profile_repository import ProfileRepository
-from schemas.file_delete_base import FileDeleteBase
-from schemas.file_schema import FileUserBase
+from schemas.file_schema import FileUserBase, FileUpdateBase, FileDeleteBase
 from services.file_manager import FileManager
 
 
@@ -48,6 +47,7 @@ class FileBoxService:
     def parse_file_model_to_file_base(files_of_user):
         return FileUserBase(
             filename=files_of_user.filename,
+            description=files_of_user.description,
             create_file=files_of_user.created_file_time,
             changed_file=files_of_user.changed_file_time,
             size_of_data=files_of_user.size_of_data,
@@ -58,7 +58,7 @@ class FileBoxService:
     @staticmethod
     def to_file_model(file_manager, file_box_id=None):
         return FileUserModel(
-            filename=file_manager.file.filename,
+            filename=file_manager.get_filename(),
             data=file_manager.file_byte,
             data_base64=file_manager.encode_base64(),
             size_of_data=file_manager.get_size_of_file(),
@@ -75,7 +75,6 @@ class FileBoxService:
             for file in filebox.files:
                 file_base = self.parse_file_model_to_file_base(file).to_json()
                 files.append(file_base)
-
         return files
 
     # Check current size of file.
@@ -121,17 +120,20 @@ class FileBoxService:
     def parse_delete_file_scheme(data):
         from pydantic import ValidationError
         try:
-            data = FileDeleteBase.parse_raw(data)
+            model = FileDeleteBase.parse_raw(data)
         except TypeError:
             return None
 
         except ValidationError:
             return None
 
-        return data
+        return model
 
     # Check if is files id has in database files
     def is_empty_files_id(self, files_id):
+        if type(files_id) is int:
+            files_id = [files_id]
+
         for id_file in files_id:
             user_file = self.get_detail_file(id_file)
             if user_file is None:
@@ -150,3 +152,30 @@ class FileBoxService:
             for id_file in files_id:
                 if file.id == id_file:
                     FileBoxRepository.delete_file(file)
+
+    @staticmethod
+    def parse_update_file_model(data):
+        try:
+            model = FileUpdateBase.parse_raw(data)
+        except TypeError:
+            return None
+
+        except ValidationError:
+            return None
+
+        return model
+
+    # Update current file use file_update_model
+    def update_file_model(self, file_update_model):
+        user_file = self.get_detail_file(file_update_model.id)
+
+        if user_file is None:
+            return
+
+        if file_update_model.filename is not None:
+            user_file.filename = file_update_model.filename
+
+        if file_update_model.description is not None:
+            user_file.description = file_update_model.description
+
+        FileBoxRepository.save_file()

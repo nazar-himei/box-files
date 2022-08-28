@@ -36,9 +36,7 @@ class FileManager:
     # Get file name without type a file.
     def get_filename(self):
         filename = self.file.filename.split('.')
-        last_index_file_type = len(filename) - 1
-
-        return filename[last_index_file_type]
+        return filename[0]
 
     @staticmethod
     def allowed_files(filename):

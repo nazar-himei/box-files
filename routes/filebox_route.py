@@ -26,6 +26,7 @@ def load_user(user_id):
 @filebox.route('/filebox/files', methods=['GET', 'POST'])
 @jwt_required()
 def filebox_files():
+
     filebox_service = FileBoxService(request, get_jwt_identity()['email'])
     files = filebox_service.iterable_element_is_filebox()
 
@@ -117,26 +118,19 @@ def delete_file():
     return jsonify({"status": "success", "data": files}), OK_STATUS
 
 
-@filebox.route('/filebox/update_file', methods=['POST'])
+@filebox.route('/filebox/updateFile', methods=['POST'])
 @jwt_required()
 def update_file():
-    id_file = request.json['id']
-    filename = request.json['filename']
+    filebox_service = FileBoxService(request, get_jwt_identity()['email'])
+    file_update_model = filebox_service.parse_update_file_model(request.data)
 
-    user_email = get_jwt_identity()['email']
-    user = UserModel.query.filter_by(email=user_email).first()
+    if file_update_model is None:
+        return jsonify(INVALID_TYPE_DATA_JSON), BADE_REQUEST_STATUS,
 
-    all_file = FileBoxModel.query.filter_by(user_id=user.id).first()
+    if filebox_service.is_empty_files_id(file_update_model.id):
+        return jsonify(INVALID_FILE_ID), BADE_REQUEST_STATUS
 
-    if all_file is None:
-        return jsonify({"status": "fail", 'message': 'data is empty'})
+    filebox_service.update_file_model(file_update_model)
+    files = filebox_service.iterable_element_is_filebox()
 
-    for file in all_file.files:
-
-        if id_file == file.id:
-            file.filename = filename
-            db.session.commit()
-
-            return jsonify({"status": "success"})
-
-    return jsonify({"status": "fail", "msg": "Invalid id file"})
+    return jsonify({"status": "success", "data": files}), OK_STATUS
