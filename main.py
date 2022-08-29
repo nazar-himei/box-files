@@ -1,11 +1,7 @@
 from application import create_app
+from extensions.flask_config_extension import flask_run
 
 app = create_app()
 
-
-def main():
-    app.run(debug=True)
-
-
 if __name__ == '__main__':
-    main()
+    flask_run(app)

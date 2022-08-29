@@ -1,13 +1,11 @@
 from flask import Blueprint, request, jsonify, send_file
-from flask_jwt_extended import (
-    get_jwt_identity,
-    jwt_required,
-)
+from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from application import login_manager
 from consts.status_code import OK_STATUS, BADE_REQUEST_STATUS
 from models.user_model import UserModel
 from services.file_box_service import FileBoxService
+from services.token_service import TokenManager
 from templates_json.auth_template_json import INVALID_TYPE_OF_FILE, INVALID_TYPE_DATA_JSON, INVALID_FILE_ID
 
 filebox = Blueprint('filebox', __name__)
@@ -21,7 +19,7 @@ def load_user(user_id):
 @filebox.route('/filebox/files', methods=['GET', 'POST'])
 @jwt_required()
 def filebox_files():
-    filebox_service = FileBoxService(request, get_jwt_identity()['email'])
+    filebox_service = FileBoxService(request, TokenManager.get_token('email'))
     files = filebox_service.iterable_element_is_filebox()
 
     return jsonify({
@@ -33,7 +31,7 @@ def filebox_files():
 @filebox.route('/filebox/upload_file', methods=['POST'])
 @jwt_required()
 def upload_file():
-    filebox_service = FileBoxService(request, get_jwt_identity()['email'])
+    filebox_service = FileBoxService(request, TokenManager.get_token('email'))
     filebox_service.iterable_files_and_update_files_byte_context()
 
     if not filebox_service.is_valid_files():
@@ -52,7 +50,7 @@ def upload_file():
 @filebox.route('/filebox/download_file', methods=['GET', 'POST'])
 @jwt_required()
 def downloads_file():
-    filebox_service = FileBoxService(request, get_jwt_identity()['email'])
+    filebox_service = FileBoxService(request, TokenManager.get_token('email'))
     files_scheme = filebox_service.parse_delete_file_scheme(request.data)
 
     if files_scheme is None:
@@ -75,7 +73,7 @@ def downloads_file():
 @filebox.route('/filebox/deleteFile', methods=['GET', 'POST'])
 @jwt_required()
 def delete_file():
-    filebox_service = FileBoxService(request, get_jwt_identity()['email'])
+    filebox_service = FileBoxService(request, TokenManager.get_token('email'))
     files_scheme = filebox_service.parse_delete_file_scheme(request.data)
 
     if files_scheme is None:
@@ -95,7 +93,7 @@ def delete_file():
 @filebox.route('/filebox/updateFile', methods=['POST'])
 @jwt_required()
 def update_file():
-    filebox_service = FileBoxService(request, get_jwt_identity()['email'])
+    filebox_service = FileBoxService(request, TokenManager.get_token('email'))
     file_update_model = filebox_service.parse_update_file_model(request.data)
 
     if file_update_model is None:
