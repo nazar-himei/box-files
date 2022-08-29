@@ -38,3 +38,10 @@ class FileUpdateBase(BaseModel):
 
     def __repr__(self):
         return f'file id: {self.id} description: ${self.description} filename: {self.filename}'
+
+
+class FileSettingsBase:
+    def __init__(self, file_byte, attachment_filename, mimetype):
+        self.file_byte = file_byte
+        self.attachment_filename = attachment_filename,
+        self.mimetype = mimetype

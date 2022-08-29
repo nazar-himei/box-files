@@ -1,10 +1,13 @@
+from datetime import datetime
+from io import BytesIO
+
 from pydantic import ValidationError
 
 from models.file_box_model import FileUserModel
 from repositories.file_box_repository import FileBoxRepository
 from repositories.profile_repository import ProfileRepository
-from schemas.file_schema import FileUserBase, FileUpdateBase, FileDeleteBase
-from services.file_manager import FileManager
+from schemas.file_schema import FileUserBase, FileUpdateBase, FileDeleteBase, FileSettingsBase
+from services.file_manager import FileManager, ZipFileManager
 
 
 class FileBoxService:
@@ -179,3 +182,50 @@ class FileBoxService:
             user_file.description = file_update_model.description
 
         FileBoxRepository.save_file()
+
+    # Archive files from storage and return zip file in format: byte code
+    def archive_files_byte(self, files_id):
+        file_manger = ZipFileManager()
+        files = self.all_files().files
+
+        for file in files:
+            for file_id in files_id:
+                if file_id == file.id:
+                    file_manger.write_file_to_zip(
+                        f"{file.filename}.{file.type_of_data}",
+                        file.data)
+
+        file_manger.close_zip_file()
+
+        return file_manger.file_byte
+
+    # Generate filename
+    @staticmethod
+    def generate_filename_filebox():
+        return f"filebox-download-{datetime.utcnow().isoformat()}.zip"
+
+    def generate_file_settings_model(self, files_id):
+        len_files_id = len(files_id)
+
+        if len_files_id == 0:
+            return
+
+        if len_files_id > 1:
+            archive_files = self.archive_files_byte(files_id)
+
+            return FileSettingsBase(
+                file_byte=archive_files,
+                attachment_filename=self.generate_filename_filebox(),
+                mimetype="application/zip"
+            )
+
+        file = self.get_detail_file(files_id[0])
+
+        if file is None:
+            return None
+
+        return FileSettingsBase(
+            file_byte=BytesIO(file.data),
+            attachment_filename=f"{file.filename}.{file.type_of_data}",
+            mimetype=f"application/{file.type_of_data}"
+        )
