@@ -9,7 +9,7 @@ from application import login_manager
 from consts.status_code import BADE_REQUEST_STATUS, UNSUPPORTED_TYPE_STATUS, OK_STATUS
 from models.user_model import UserModel
 from services.auth_service import AuthService
-from services.token_service import TokenManager
+from services.token_service import TokenService
 from templates_json.auth_template_json import (
     INVALID_TYPE_DATA_JSON,
     USER_ALREADY_JSON,
@@ -17,7 +17,11 @@ from templates_json.auth_template_json import (
     INCORRECT_DATA_USER,
 )
 
-auth = Blueprint('auth', __name__)
+auth = Blueprint(
+    'auth',
+    __name__,
+    url_prefix="/api/v1/",
+)
 
 
 @login_manager.user_loader
@@ -25,14 +29,15 @@ def load_user(user_id):
     return UserModel.get(user_id)
 
 
-@auth.route('/sign_up', methods=['POST'])
+@auth.route('/register', methods=['POST'])
 def sign_up():
     auth_service = AuthService(request=request)
     sign_up_base = auth_service.parse_sign_up_base()
-    user_email = sign_up_base.email
 
     if sign_up_base is None:
         return jsonify(INVALID_TYPE_DATA_JSON), BADE_REQUEST_STATUS
+
+    user_email = sign_up_base.email
 
     if auth_service.is_user_already_exists(email=user_email):
         return jsonify(USER_ALREADY_JSON), UNSUPPORTED_TYPE_STATUS
@@ -43,7 +48,7 @@ def sign_up():
     return jsonify(auth_user_base.to_json()), OK_STATUS
 
 
-@auth.route('/sign_in', methods=['GET', 'POST'])
+@auth.route('/login', methods=['POST'])
 def sign_in():
     auth_service = AuthService(request=request)
     sign_in_base = auth_service.parse_sign_in_base()
@@ -67,15 +72,15 @@ def sign_in():
 
 # We are using the `refresh=True` options in jwt_required to only allow
 # refresh tokens to access this route.
-@auth.route("/user/refresh", methods=["POST"])
+@auth.route("/refreshToken", methods=["POST"])
 @jwt_required(refresh=True)
 def refresh():
-    get_token = TokenManager.get_token(key=['email'])
-    toke_manager = TokenManager(identity={"email": get_token})
+    get_token = TokenService.get_token(key=['email'])
+    toke_manager = TokenService(identity={"email": get_token})
     return jsonify(access_token=toke_manager.generate_token()), OK_STATUS
 
 
-@auth.route('/user/logout', methods=["GET", "POST"])
+@auth.route('/logout', methods=["POST"])
 @login_required
 @jwt_required()
 def user_logout():

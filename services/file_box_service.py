@@ -3,6 +3,7 @@ from io import BytesIO
 
 from pydantic import ValidationError
 
+from consts.mime_types import MIME_TYPE_ZIP
 from models.file_box_model import FileUserModel
 from repositories.file_box_repository import FileBoxRepository
 from repositories.profile_repository import ProfileRepository
@@ -39,9 +40,11 @@ class FileBoxService:
     def get_user(self):
         return ProfileRepository.get_user(user_email=self.user_email)
 
+    # Get all files of user from storage
     def all_files(self):
         return FileBoxRepository.get_filebox_model(self.get_user().id)
 
+    # Provide detail file of user
     def get_detail_file(self, file_id):
         user = self.get_user()
         return FileBoxRepository.get_file_model(user.id, file_id)
@@ -204,6 +207,7 @@ class FileBoxService:
     def generate_filename_filebox():
         return f"filebox-download-{datetime.utcnow().isoformat()}.zip"
 
+    # Generate file settings for download file
     def generate_file_settings_model(self, files_id):
         len_files_id = len(files_id)
 
@@ -216,7 +220,7 @@ class FileBoxService:
             return FileSettingsBase(
                 file_byte=archive_files,
                 attachment_filename=self.generate_filename_filebox(),
-                mimetype="application/zip"
+                mimetype=MIME_TYPE_ZIP
             )
 
         file = self.get_detail_file(files_id[0])
