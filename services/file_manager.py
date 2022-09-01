@@ -1,13 +1,16 @@
 from base64 import b64decode, b64encode
 from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
+
 from magic import from_buffer
 
 from consts.file_const import ALLOWED_EXTENSIONS
 
 
-# FileManager is model for provide more detail about file [type, size, base64]
 class FileManager:
+    """
+    FileManager is model for provide more detail about file [type, size, base64]
+    """
 
     def __init__(self, file, file_byte=None):
         self.file = file

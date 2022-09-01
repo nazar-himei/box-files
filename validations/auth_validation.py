@@ -2,7 +2,7 @@ import re
 
 from werkzeug.security import check_password_hash
 
-from validations.regexps import email_regex, password_regex
+from validations.regexps import EMAIL_REGEX, PASSWORD_REGEX
 
 
 class AuthValidation:
@@ -16,11 +16,11 @@ class AuthValidation:
 
     @staticmethod
     def valid_email(email):
-        return AuthValidation.is_valid_value(email, email_regex)
+        return AuthValidation.is_valid_value(email, EMAIL_REGEX)
 
     @staticmethod
     def valid_password(password):
-        return AuthValidation.is_valid_value(password, password_regex)
+        return AuthValidation.is_valid_value(password, PASSWORD_REGEX)
 
     @staticmethod
     def valid_password_and_email(email, password):

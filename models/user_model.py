@@ -17,8 +17,8 @@ class UserModel(UserMixin, db.Model):
         self.last_login_date = datetime.utcnow()
 
     id = db.Column(db.Integer, primary_key=True)
-    first_name = db.Column(db.String(80), index=True, unique=True, nullable=False)
-    last_name = db.Column(db.String(80), index=True, unique=True, nullable=False)
+    first_name = db.Column(db.String(80), index=True, nullable=False)
+    last_name = db.Column(db.String(80), index=True, nullable=False)
     email = db.Column(db.String(120), unique=True, index=True, nullable=False)
     password_hash = db.Column(db.String(150))
     created_on = db.Column(db.DateTime, index=False, unique=False, nullable=False, default=datetime.utcnow())

@@ -7,7 +7,9 @@ from flask_jwt_extended import (
 
 
 class TokenService:
-    """Token Service provide function for work with token"""
+    """
+    Token Service provide function for work with token
+    """
 
     def __init__(self, identity):
         self.identity = identity

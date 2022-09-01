@@ -1,4 +1,4 @@
-from services.session_service import SessionManager
+from services.session_service import SessionService
 from models.user_model import UserModel
 from datetime import datetime
 
@@ -20,15 +20,15 @@ class ProfileRepository:
 
     @staticmethod
     def add_user(user_model):
-        SessionManager.init_db()
-        SessionManager.add_model(user_model)
+        SessionService.create_db()
+        SessionService.add_model(user_model)
 
     @staticmethod
     def delete_user(user_model):
-        SessionManager.delete_model(user_model)
+        SessionService.delete_model(user_model)
 
     @staticmethod
     def update_status_active_user(user_email):
         user = ProfileRepository.get_user(user_email=user_email)
         user.last_login_date = datetime.utcnow()
-        SessionManager.save_change()
+        SessionService.save_change()

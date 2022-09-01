@@ -12,6 +12,10 @@ from services.file_manager import FileManager, ZipFileManager
 
 
 class FileBoxService:
+    """
+    FileBoxService has a method for works with file system, user files from database
+    """
+
     def __init__(self, request, user_email):
         self.request = request
         self.user_email = user_email
@@ -54,8 +58,8 @@ class FileBoxService:
         return FileUserBase(
             filename=files_of_user.filename,
             description=files_of_user.description,
-            create_file=files_of_user.created_file_time,
-            changed_file=files_of_user.changed_file_time,
+            create_file=files_of_user.created_file_time.isoformat(),
+            changed_file=files_of_user.changed_file_time.isoformat(),
             size_of_data=files_of_user.size_of_data,
             type_data=files_of_user.type_of_data,
             file_id=files_of_user.id
@@ -67,6 +71,7 @@ class FileBoxService:
             filename=file_manager.get_filename(),
             data=file_manager.file_byte,
             data_base64=file_manager.encode_base64(),
+            description="",
             size_of_data=file_manager.get_size_of_file(),
             type_of_data=file_manager.get_type_of_file(),
             file_key=file_box_id
@@ -85,9 +90,12 @@ class FileBoxService:
 
     # Check current size of file.
     def is_valid_files(self):
-        files = self.request.files.values()
+        files = self.request.files
 
-        for file in files:
+        if len(files) < 1:
+            return False
+
+        for file in files.values():
             file_byte = self.files_byte_context.get(file.filename)
             file_manager = FileManager(file=file, file_byte=file_byte)
             is_valid_file = file_manager.get_size_of_file() <= 10

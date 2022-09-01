@@ -1,5 +1,5 @@
 from models.file_box_model import FileBoxModel
-from services.session_service import SessionManager
+from services.session_service import SessionService
 
 
 class FileBoxRepository:
@@ -23,16 +23,16 @@ class FileBoxRepository:
     def init_files_box(file_model, user_id):
         file_box = FileBoxModel(user_id=user_id)
         file_box.files.append(file_model)
-        SessionManager.add_model(file_box)
+        SessionService.add_model(file_box)
 
     @staticmethod
     def add_file(file_user_model):
-        SessionManager.add_model(file_user_model)
+        SessionService.add_model(file_user_model)
 
     @staticmethod
     def delete_file(file_model):
-        SessionManager.delete_model(file_model)
+        SessionService.delete_model(file_model)
 
     @staticmethod
     def save_file():
-        SessionManager.get_session().commit()
+        SessionService.get_session().commit()

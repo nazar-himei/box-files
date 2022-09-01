@@ -9,7 +9,9 @@ from validations.auth_validation import AuthValidation
 
 
 class AuthService:
-    """ Auth Service """
+    """
+    Auth Service has function for work with authentication.
+    """
 
     def __init__(self, request=None):
         self.request = request

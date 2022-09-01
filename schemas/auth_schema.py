@@ -25,9 +25,9 @@ class AuthUserBase:
         self.access_token = access_token
         self.refresh_token = refresh_token
 
-    def to_json(self):
+    def to_json(self, status="success"):
         return {
-            "status": "success",
+            "status": status,
             "access_token": self.access_token,
             "refresh_token": self.refresh_token,
             "data": {

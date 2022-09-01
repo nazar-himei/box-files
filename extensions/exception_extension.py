@@ -2,7 +2,9 @@ from werkzeug.exceptions import HTTPException
 
 
 def handle_global_error(error: HTTPException):
-    """ Make JSON Error Response instead of Web Page """
+    """
+    Make JSON Error Response instead of Web Page
+    """
     response = {
         'error': error.__class__.__name__,
         'message': error.description,
