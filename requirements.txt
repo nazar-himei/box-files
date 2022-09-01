@@ -6,6 +6,6 @@ pydantic==1.9.1
 python-dotenv==0.20.0
 python_magic==0.4.27
 Werkzeug==2.1.2
-
+gunicorn==20.1.0
 python-magic~=0.4.27
 SQLAlchemy~=1.4.39
