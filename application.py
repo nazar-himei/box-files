@@ -23,7 +23,7 @@ def create_app():
 
     with app.app_context():
         if db.app is None:
-            db.create_db()
+            db.create_all()
 
     jwt_manager.init_app(app)
     login_manager.init_app(app)

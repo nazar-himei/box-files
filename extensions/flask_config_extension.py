@@ -15,4 +15,4 @@ def flask_config(app, config: Config):
 
 
 def flask_run(app, config: Config):
-    app.run(debug=False)
+    app.run(debug=config.DEBUG)
