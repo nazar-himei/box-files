@@ -23,9 +23,7 @@ def create_app():
 
     with app.app_context():
         if db.app is None:
-            from services.session_service import SessionService
-
-            SessionService.create_db()
+            db.create_db()
 
     jwt_manager.init_app(app)
     login_manager.init_app(app)

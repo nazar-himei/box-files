@@ -15,8 +15,4 @@ def flask_config(app, config: Config):
 
 
 def flask_run(app, config: Config):
-    app.run(
-        debug=config.DEBUG,
-        host=config.HOST,
-        port=config.PORT,
-    )
+    app.run(debug=False)
